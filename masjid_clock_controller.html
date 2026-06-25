@@ -1,0 +1,1515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Masjid Clock Controller</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-bg: #0f0f1e;
+            --secondary-bg: #1a1a2e;
+            --accent: #d4af37;
+            --accent-light: #e8c547;
+            --text-primary: #ffffff;
+            --text-secondary: #b0b0b0;
+            --success: #51cf66;
+            --warning: #ffd43b;
+            --danger: #ff6b6b;
+            --next-prayer: #ffffff;
+            --border-color: #2d2d4a;
+            --shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background-color: var(--primary-bg);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 16px;
+        }
+
+        /* HEADER & NAVIGATION */
+        .header {
+            background: linear-gradient(135deg, #1a1a2e 0%, #2d2d4a 100%);
+            padding: 20px 0;
+            border-bottom: 2px solid var(--accent);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: var(--shadow);
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--accent);
+            letter-spacing: 1px;
+        }
+
+        .logo-sub {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: -4px;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            padding: 6px 12px;
+            background: rgba(81, 207, 102, 0.1);
+            border: 1px solid var(--success);
+            border-radius: 20px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .connection-status.offline {
+            background: rgba(255, 107, 107, 0.1);
+            border-color: var(--danger);
+        }
+
+        .connection-status.offline .status-dot {
+            background: var(--danger);
+            animation: none;
+        }
+
+        /* TABS */
+        .nav-tabs {
+            display: flex;
+            gap: 8px;
+            border-bottom: 2px solid var(--border-color);
+            margin: 20px 0;
+            overflow-x: auto;
+            padding: 0 0 12px 0;
+        }
+
+        .nav-tab {
+            padding: 10px 20px;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+
+        .nav-tab:hover {
+            color: var(--accent);
+        }
+
+        .nav-tab.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+        }
+
+        /* LED PREVIEW */
+        .led-preview {
+            background: #000000;
+            border: 3px solid var(--accent);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 24px;
+            box-shadow: inset 0 0 20px rgba(212, 175, 55, 0.1);
+            aspect-ratio: 4 / 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .led-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            image-rendering: pixelated;
+        }
+
+        .led-info {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 12px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        /* DASHBOARD SECTION */
+        .section {
+            margin-bottom: 32px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-title::before {
+            content: '';
+            width: 4px;
+            height: 20px;
+            background: var(--accent);
+            border-radius: 2px;
+        }
+
+        /* QUICK CONTROLS */
+        .quick-controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .control-card {
+            background: var(--secondary-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .control-card:hover {
+            border-color: var(--accent);
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.2);
+        }
+
+        .control-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .control-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 12px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .slider-group {
+            margin-bottom: 16px;
+        }
+
+        .slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: var(--border-color);
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .slider::-webkit-slider-thumb:active {
+            transform: scale(1.2);
+        }
+
+        .slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s ease;
+        }
+
+        .slider::-moz-range-thumb:active {
+            transform: scale(1.2);
+        }
+
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+
+        /* MODE SELECTOR */
+        .mode-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .mode-btn {
+            padding: 12px;
+            background: var(--secondary-bg);
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-secondary);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .mode-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .mode-btn.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: var(--primary-bg);
+        }
+
+        /* PRAYER TIMES */
+        .prayer-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .prayer-card {
+            background: var(--secondary-bg);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .prayer-card.completed {
+            border-color: var(--success);
+            background: rgba(81, 207, 102, 0.05);
+        }
+
+        .prayer-card.next {
+            border-color: var(--next-prayer);
+            background: rgba(255, 255, 255, 0.05);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+        }
+
+        .prayer-card.pending {
+            border-color: var(--danger);
+            background: rgba(255, 107, 107, 0.05);
+        }
+
+        .prayer-name {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-primary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .prayer-time {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 8px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .prayer-status {
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            display: inline-block;
+            font-weight: 600;
+        }
+
+        .prayer-status.completed {
+            background: var(--success);
+            color: var(--primary-bg);
+        }
+
+        .prayer-status.next {
+            background: var(--next-prayer);
+            color: var(--primary-bg);
+        }
+
+        .prayer-status.pending {
+            background: var(--danger);
+            color: white;
+        }
+
+        /* SETTINGS SECTIONS */
+        .settings-group {
+            background: var(--secondary-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+
+        .settings-group-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .setting-item {
+            margin-bottom: 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            align-items: flex-end;
+        }
+
+        .setting-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .setting-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+
+        .setting-input {
+            background: var(--primary-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 10px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: all 0.3s ease;
+        }
+
+        .setting-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 10px rgba(212, 175, 55, 0.2);
+        }
+
+        .setting-select {
+            background: var(--primary-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 10px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .setting-select:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .setting-select option {
+            background: var(--secondary-bg);
+            color: var(--text-primary);
+        }
+
+        /* BUTTONS */
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: var(--primary-bg);
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-light);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(212, 175, 55, 0.3);
+        }
+
+        .btn-secondary {
+            background: var(--secondary-bg);
+            color: var(--accent);
+            border: 2px solid var(--accent);
+        }
+
+        .btn-secondary:hover {
+            background: var(--accent);
+            color: var(--primary-bg);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #ff5252;
+            transform: translateY(-2px);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+
+        /* TOAST */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: var(--success);
+            color: var(--primary-bg);
+            padding: 16px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            animation: slideIn 0.3s ease;
+            z-index: 1000;
+            box-shadow: var(--shadow);
+        }
+
+        .toast.error {
+            background: var(--danger);
+            color: white;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* LOGIN */
+        .login-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .login-card {
+            background: var(--secondary-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 40px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: var(--shadow);
+        }
+
+        .login-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .login-subtitle {
+            color: var(--text-secondary);
+            text-align: center;
+            margin-bottom: 32px;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--text-secondary);
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-group input {
+            width: 100%;
+        }
+
+        /* HIDDEN */
+        .hidden {
+            display: none !important;
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 768px) {
+            .container {
+                padding: 0 12px;
+            }
+
+            .header-content {
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .led-preview {
+                aspect-ratio: auto;
+                height: 200px;
+            }
+
+            .quick-controls {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .prayer-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .setting-item {
+                grid-template-columns: 1fr;
+            }
+
+            .toast {
+                bottom: 16px;
+                right: 16px;
+                left: 16px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .logo {
+                font-size: 18px;
+            }
+
+            .section-title {
+                font-size: 16px;
+            }
+
+            .quick-controls,
+            .prayer-grid,
+            .mode-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .control-card {
+                padding: 12px;
+            }
+
+            .btn-group {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+
+            .login-card {
+                padding: 24px;
+            }
+        }
+
+        /* TAB CONTENT */
+        .tab-content {
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <!-- LOGIN PAGE -->
+    <div id="loginPage" class="login-container">
+        <div class="login-card">
+            <h1 class="login-title">🕌 Masjid Clock</h1>
+            <p class="login-subtitle">Control your prayer display</p>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        class="setting-input" 
+                        placeholder="Enter device password"
+                        required
+                    >
+                </div>
+                <div class="form-group">
+                    <label for="deviceIP">Device IP (optional)</label>
+                    <input 
+                        type="text" 
+                        id="deviceIP" 
+                        class="setting-input" 
+                        placeholder="192.168.1.100"
+                    >
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">
+                    Connect to Device
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MAIN APP -->
+    <div id="mainApp" class="hidden">
+        <!-- HEADER -->
+        <header class="header">
+            <div class="container">
+                <div class="header-content">
+                    <div>
+                        <div class="logo">🕌 MASJID CLOCK</div>
+                        <div class="logo-sub">Prayer Display Controller</div>
+                    </div>
+                    <div class="connection-status" id="connectionStatus">
+                        <div class="status-dot"></div>
+                        <span id="statusText">Connected</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="container">
+            <!-- LED PREVIEW -->
+            <div class="led-preview">
+                <canvas id="ledCanvas" class="led-canvas"></canvas>
+            </div>
+            <div class="led-info">
+                <span>Live LED Matrix Preview (128 × 32)</span>
+                <span id="updateTime">Last update: just now</span>
+            </div>
+
+            <!-- NAVIGATION TABS -->
+            <div class="nav-tabs">
+                <button class="nav-tab active" data-tab="dashboard">Dashboard</button>
+                <button class="nav-tab" data-tab="prayers">Prayer Times</button>
+                <button class="nav-tab" data-tab="display">Display</button>
+                <button class="nav-tab" data-tab="system">System</button>
+            </div>
+
+            <!-- DASHBOARD TAB -->
+            <div id="dashboard" class="tab-content">
+                <!-- QUICK CONTROLS -->
+                <div class="section">
+                    <div class="section-title">Quick Controls</div>
+                    <div class="quick-controls">
+                        <div class="control-card">
+                            <div class="control-label">Brightness</div>
+                            <div class="control-value" id="brightnessValue">80</div>
+                            <div class="slider-group">
+                                <input 
+                                    type="range" 
+                                    id="brightnessSlider" 
+                                    class="slider" 
+                                    min="0" 
+                                    max="255" 
+                                    value="80"
+                                >
+                            </div>
+                        </div>
+
+                        <div class="control-card">
+                            <div class="control-label">Volume</div>
+                            <div class="control-value" id="volumeValue">80</div>
+                            <div class="slider-group">
+                                <input 
+                                    type="range" 
+                                    id="volumeSlider" 
+                                    class="slider" 
+                                    min="0" 
+                                    max="30" 
+                                    value="15"
+                                >
+                            </div>
+                        </div>
+
+                        <div class="control-card">
+                            <div class="control-label">Scroll Speed</div>
+                            <div class="control-value" id="speedValue">50</div>
+                            <div class="slider-group">
+                                <input 
+                                    type="range" 
+                                    id="speedSlider" 
+                                    class="slider" 
+                                    min="10" 
+                                    max="200" 
+                                    value="50"
+                                >
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DISPLAY MODE -->
+                <div class="section">
+                    <div class="section-title">Display Mode</div>
+                    <div class="mode-grid">
+                        <button class="mode-btn active" data-mode="0">Clock</button>
+                        <button class="mode-btn" data-mode="1">Scrolling</button>
+                        <button class="mode-btn" data-mode="2">Weather</button>
+                        <button class="mode-btn" data-mode="3">Qibla</button>
+                        <button class="mode-btn" data-mode="4">Prayers</button>
+                        <button class="mode-btn" data-mode="5">Turn Off Msg</button>
+                    </div>
+                </div>
+
+                <!-- UPCOMING PRAYERS -->
+                <div class="section">
+                    <div class="section-title">Today's Prayers</div>
+                    <div class="prayer-grid" id="prayerGrid">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- PRAYER TIMES TAB -->
+            <div id="prayers" class="tab-content hidden">
+                <div class="section">
+                    <div class="section-title">Prayer Time Settings</div>
+                    
+                    <div class="settings-group">
+                        <div class="settings-group-title">Prayer Time Offsets (minutes)</div>
+                        <div class="setting-item">
+                            <div>
+                                <div class="setting-label">Fajr Offset</div>
+                                <input type="number" class="setting-input offset-input" data-prayer="fajr" value="0">
+                            </div>
+                            <div>
+                                <div class="setting-label">Dhuhr Offset</div>
+                                <input type="number" class="setting-input offset-input" data-prayer="dhuhr" value="0">
+                            </div>
+                        </div>
+                        <div class="setting-item">
+                            <div>
+                                <div class="setting-label">Asr Offset</div>
+                                <input type="number" class="setting-input offset-input" data-prayer="asr" value="0">
+                            </div>
+                            <div>
+                                <div class="setting-label">Maghrib Offset</div>
+                                <input type="number" class="setting-input offset-input" data-prayer="maghrib" value="0">
+                            </div>
+                        </div>
+                        <div class="setting-item">
+                            <div>
+                                <div class="setting-label">Isha Offset</div>
+                                <input type="number" class="setting-input offset-input" data-prayer="isha" value="0">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-group">
+                        <div class="settings-group-title">Iqama Countdown (minutes)</div>
+                        <div class="setting-item">
+                            <div>
+                                <div class="setting-label">Fajr Iqama</div>
+                                <input type="number" class="setting-input iqama-input" data-prayer="fajr" value="5">
+                            </div>
+                            <div>
+                                <div class="setting-label">Dhuhr Iqama</div>
+                                <input type="number" class="setting-input iqama-input" data-prayer="dhuhr" value="5">
+                            </div>
+                        </div>
+                        <div class="setting-item">
+                            <div>
+                                <div class="setting-label">Asr Iqama</div>
+                                <input type="number" class="setting-input iqama-input" data-prayer="asr" value="5">
+                            </div>
+                            <div>
+                                <div class="setting-label">Maghrib Iqama</div>
+                                <input type="number" class="setting-input iqama-input" data-prayer="maghrib" value="5">
+                            </div>
+                        </div>
+                        <div class="setting-item">
+                            <div>
+                                <div class="setting-label">Isha Iqama</div>
+                                <input type="number" class="setting-input iqama-input" data-prayer="isha" value="5">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-group">
+                        <div class="settings-group-title">Calculation Method</div>
+                        <div class="setting-item">
+                            <div>
+                                <div class="setting-label">Method</div>
+                                <select class="setting-select" id="calcMethod">
+                                    <option value="0">MWL (Muslim World League)</option>
+                                    <option value="1">Egypt (ESRA)</option>
+                                    <option value="2">ISNA (North America)</option>
+                                    <option value="3">Makkah (Umm Al-Qura)</option>
+                                    <option value="4">Karachi</option>
+                                    <option value="5">Tehran</option>
+                                </select>
+                            </div>
+                            <div>
+                                <div class="setting-label">Asr Method</div>
+                                <select class="setting-select" id="asrMethod">
+                                    <option value="0">Shafii</option>
+                                    <option value="1">Hanafi</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="setting-item">
+                            <div>
+                                <div class="setting-label">High Latitude Method</div>
+                                <select class="setting-select" id="highLat">
+                                    <option value="0">None</option>
+                                    <option value="1">Middle of Night</option>
+                                    <option value="2">One Seventh</option>
+                                    <option value="3">Angle Based</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="btn-group">
+                        <button class="btn btn-primary" id="savePrayersBtn">Save Prayer Settings</button>
+                        <button class="btn btn-secondary" id="syncTimeBtn">Sync Device Time</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DISPLAY TAB -->
+            <div id="display" class="tab-content hidden">
+                <div class="section">
+                    <div class="section-title">Display Settings</div>
+                    
+                    <div class="settings-group">
+                        <div class="settings-group-title">Brightness</div>
+                        <div class="setting-item">
+                            <div>
+                                <div class="setting-label">Display Brightness</div>
+                                <input type="range" id="dispBrightness" class="slider" min="0" max="255" value="200">
+                            </div>
+                            <div style="text-align: right;">
+                                <span id="dispBrightnessValue" style="color: var(--accent); font-weight: 700;">200</span>
+                            </div>
+                        </div>
+                        <div class="setting-item">
+                            <div>
+                                <div class="setting-label">Auto Brightness</div>
+                                <input type="checkbox" id="autoBrightness" style="width: 20px; height: 20px; cursor: pointer;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-group">
+                        <div class="settings-group-title">Time & Date</div>
+                        <div class="setting-item">
+                            <div>
+                                <div class="setting-label">Time Format</div>
+                                <select class="setting-select" id="timeFormat">
+                                    <option value="0">12 Hour (AM/PM)</option>
+                                    <option value="1">24 Hour</option>
+                                </select>
+                            </div>
+                            <div>
+                                <div class="setting-label">Date Format</div>
+                                <select class="setting-select" id="dateFormat">
+                                    <option value="0">Gregorian</option>
+                                    <option value="1">Hijri</option>
+                                    <option value="2">Both</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-group">
+                        <div class="settings-group-title">Scrolling Text</div>
+                        <div class="setting-item">
+                            <div style="grid-column: 1 / -1;">
+                                <div class="setting-label">Message (English)</div>
+                                <input type="text" class="setting-input" id="scrollMsg" placeholder="Enter message" maxlength="100">
+                            </div>
+                        </div>
+                        <div class="setting-item">
+                            <div style="grid-column: 1 / -1;">
+                                <div class="setting-label">Message (Arabic)</div>
+                                <input type="text" class="setting-input" id="scrollMsgArabic" placeholder="أدخل الرسالة" maxlength="100" dir="rtl">
+                            </div>
+                        </div>
+                        <div class="setting-item">
+                            <div>
+                                <div class="setting-label">Scroll Speed</div>
+                                <input type="range" id="dispScrollSpeed" class="slider" min="10" max="200" value="50">
+                            </div>
+                            <div style="text-align: right;">
+                                <span id="dispScrollValue" style="color: var(--accent); font-weight: 700;">50</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-group">
+                        <div class="settings-group-title">Display Intervals</div>
+                        <div class="setting-item">
+                            <div>
+                                <div class="setting-label">Weather Interval (sec)</div>
+                                <input type="number" class="setting-input" id="weatherInterval" value="60" min="10">
+                            </div>
+                            <div>
+                                <div class="setting-label">Prayer Interval (sec)</div>
+                                <input type="number" class="setting-input" id="prayerInterval" value="180" min="10">
+                            </div>
+                        </div>
+                        <div class="setting-item">
+                            <div>
+                                <div class="setting-label">Qibla Interval (sec)</div>
+                                <input type="number" class="setting-input" id="qiblaInterval" value="300" min="10">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="btn-group">
+                        <button class="btn btn-primary" id="saveDisplayBtn">Save Display Settings</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SYSTEM TAB -->
+            <div id="system" class="tab-content hidden">
+                <div class="section">
+                    <div class="section-title">System Information</div>
+                    
+                    <div class="settings-group">
+                        <div class="settings-group-title">Device Status</div>
+                        <div class="setting-item">
+                            <div>
+                                <div class="setting-label">Device IP</div>
+                                <span id="deviceIPDisplay" style="color: var(--accent);">--</span>
+                            </div>
+                            <div>
+                                <div class="setting-label">WiFi Signal</div>
+                                <span id="wifiSignal" style="color: var(--accent);">--</span>
+                            </div>
+                        </div>
+                        <div class="setting-item">
+                            <div>
+                                <div class="setting-label">Device Time</div>
+                                <span id="deviceTime" style="color: var(--accent);">--</span>
+                            </div>
+                            <div>
+                                <div class="setting-label">Temperature</div>
+                                <span id="deviceTemp" style="color: var(--accent);">--</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-group">
+                        <div class="settings-group-title">System Control</div>
+                        <div class="btn-group">
+                            <button class="btn btn-secondary" id="rebootBtn">Reboot Device</button>
+                            <button class="btn btn-danger" id="factoryResetBtn">Factory Reset</button>
+                        </div>
+                    </div>
+
+                    <div class="settings-group">
+                        <div class="settings-group-title">Firmware</div>
+                        <div class="setting-item">
+                            <div>
+                                <div class="setting-label">Current Version</div>
+                                <span id="firmwareVersion" style="color: var(--accent);">v1.0.0</span>
+                            </div>
+                            <div style="text-align: right;">
+                                <button class="btn btn-primary" id="updateFirmwareBtn">Check for Updates</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">Event Log</div>
+                    <div class="settings-group">
+                        <div id="eventLog" style="max-height: 300px; overflow-y: auto; background: var(--primary-bg); padding: 12px; border-radius: 8px; font-size: 12px; font-family: monospace;">
+                            <span style="color: var(--text-secondary);">Loading event log...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ====== CONFIGURATION ======
+        const CONFIG = {
+            API_TIMEOUT: 5000,
+            UPDATE_INTERVAL: 5000, // 5 seconds
+            DEVICE_IP: localStorage.getItem('deviceIP') || 'http://192.168.1.100'
+        };
+
+        // ====== STATE ======
+        let isLoggedIn = false;
+        let lastUpdateTime = Date.now();
+        const prayers = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
+
+        // ====== LED PREVIEW ======
+        class LEDPreview {
+            constructor() {
+                this.canvas = document.getElementById('ledCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.pixelSize = 2;
+                this.resizeCanvas();
+                window.addEventListener('resize', () => this.resizeCanvas());
+            }
+
+            resizeCanvas() {
+                const container = this.canvas.parentElement;
+                this.canvas.width = container.offsetWidth - 40;
+                this.canvas.height = this.canvas.width * 0.25;
+                this.pixelSize = Math.max(1, Math.floor(this.canvas.height / 32));
+            }
+
+            drawTime(time) {
+                this.clear();
+                this.ctx.fillStyle = '#00ff00';
+                this.ctx.font = `bold ${this.pixelSize * 8}px monospace`;
+                this.ctx.textAlign = 'center';
+                this.ctx.fillText(time, this.canvas.width / 2, this.canvas.height * 0.65);
+                
+                // Add border
+                this.ctx.strokeStyle = '#d4af37';
+                this.ctx.lineWidth = 2;
+                this.ctx.strokeRect(0, 0, this.canvas.width, this.canvas.height);
+            }
+
+            drawWeather(data) {
+                this.clear();
+                this.ctx.fillStyle = '#ffaa00';
+                this.ctx.font = `bold ${this.pixelSize * 5}px monospace`;
+                this.ctx.textAlign = 'left';
+                this.ctx.fillText('☀️ ' + data, 10, this.canvas.height / 2);
+                
+                this.ctx.strokeStyle = '#d4af37';
+                this.ctx.lineWidth = 2;
+                this.ctx.strokeRect(0, 0, this.canvas.width, this.canvas.height);
+            }
+
+            drawPrayers(data) {
+                this.clear();
+                this.ctx.fillStyle = '#ffffff';
+                this.ctx.font = `bold ${this.pixelSize * 4}px monospace`;
+                this.ctx.textAlign = 'left';
+                
+                let y = this.pixelSize * 5;
+                data.forEach(prayer => {
+                    this.ctx.fillText(prayer, 10, y);
+                    y += this.pixelSize * 6;
+                });
+                
+                this.ctx.strokeStyle = '#d4af37';
+                this.ctx.lineWidth = 2;
+                this.ctx.strokeRect(0, 0, this.canvas.width, this.canvas.height);
+            }
+
+            drawMessage(msg) {
+                this.clear();
+                this.ctx.fillStyle = '#00ccff';
+                this.ctx.font = `bold ${this.pixelSize * 6}px monospace`;
+                this.ctx.textAlign = 'center';
+                this.ctx.fillText(msg || 'Welcome to Masjid', this.canvas.width / 2, this.canvas.height * 0.6);
+                
+                this.ctx.strokeStyle = '#d4af37';
+                this.ctx.lineWidth = 2;
+                this.ctx.strokeRect(0, 0, this.canvas.width, this.canvas.height);
+            }
+
+            clear() {
+                this.ctx.fillStyle = '#000000';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            }
+        }
+
+        const ledPreview = new LEDPreview();
+
+        // ====== LOGIN ======
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const password = document.getElementById('password').value;
+            const ip = document.getElementById('deviceIP').value;
+            
+            if (ip) {
+                CONFIG.DEVICE_IP = ip.startsWith('http') ? ip : `http://${ip}`;
+                localStorage.setItem('deviceIP', CONFIG.DEVICE_IP);
+            }
+
+            try {
+                const response = await fetch(`${CONFIG.DEVICE_IP}/api/status`, {
+                    headers: { 'Authorization': `Bearer ${password}` },
+                    timeout: CONFIG.API_TIMEOUT
+                });
+                
+                if (response.ok) {
+                    isLoggedIn = true;
+                    localStorage.setItem('password', password);
+                    document.getElementById('loginPage').classList.add('hidden');
+                    document.getElementById('mainApp').classList.remove('hidden');
+                    startApp();
+                } else {
+                    showToast('Invalid password', 'error');
+                }
+            } catch (err) {
+                showToast('Cannot connect to device. Check IP and try again.', 'error');
+            }
+        });
+
+        // ====== APP INITIALIZATION ======
+        function startApp() {
+            setupTabNavigation();
+            setupControls();
+            updateStatus();
+            updatePreview();
+            setInterval(updateStatus, CONFIG.UPDATE_INTERVAL);
+            setInterval(updatePreview, CONFIG.UPDATE_INTERVAL);
+        }
+
+        // ====== TAB NAVIGATION ======
+        function setupTabNavigation() {
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const tabName = tab.getAttribute('data-tab');
+                    
+                    document.querySelectorAll('.tab-content').forEach(content => {
+                        content.classList.add('hidden');
+                    });
+                    document.querySelectorAll('.nav-tab').forEach(t => {
+                        t.classList.remove('active');
+                    });
+                    
+                    document.getElementById(tabName).classList.remove('hidden');
+                    tab.classList.add('active');
+                });
+            });
+        }
+
+        // ====== CONTROLS SETUP ======
+        function setupControls() {
+            // Sliders
+            document.getElementById('brightnessSlider').addEventListener('input', (e) => {
+                document.getElementById('brightnessValue').textContent = e.target.value;
+                apiCall('POST', '/api/brightness', { level: parseInt(e.target.value) });
+            });
+
+            document.getElementById('volumeSlider').addEventListener('input', (e) => {
+                document.getElementById('volumeValue').textContent = e.target.value;
+                apiCall('POST', '/api/volume', { level: parseInt(e.target.value) });
+            });
+
+            document.getElementById('speedSlider').addEventListener('input', (e) => {
+                document.getElementById('speedValue').textContent = e.target.value;
+                apiCall('POST', '/api/scrollspeed', { speed: parseInt(e.target.value) });
+            });
+
+            // Mode buttons
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    const mode = parseInt(btn.getAttribute('data-mode'));
+                    apiCall('POST', '/api/mode', { mode: mode });
+                });
+            });
+
+            // Display settings
+            document.getElementById('dispBrightness').addEventListener('input', (e) => {
+                document.getElementById('dispBrightnessValue').textContent = e.target.value;
+            });
+
+            document.getElementById('dispScrollSpeed').addEventListener('input', (e) => {
+                document.getElementById('dispScrollValue').textContent = e.target.value;
+            });
+
+            // Buttons
+            document.getElementById('savePrayersBtn').addEventListener('click', savePrayerSettings);
+            document.getElementById('saveDisplayBtn').addEventListener('click', saveDisplaySettings);
+            document.getElementById('syncTimeBtn').addEventListener('click', syncDeviceTime);
+            document.getElementById('rebootBtn').addEventListener('click', () => {
+                if (confirm('Are you sure you want to reboot the device?')) {
+                    apiCall('POST', '/api/reboot', {});
+                }
+            });
+            document.getElementById('factoryResetBtn').addEventListener('click', () => {
+                if (confirm('⚠️ This will erase all settings! Are you absolutely sure?')) {
+                    apiCall('POST', '/api/factory_reset', {});
+                }
+            });
+        }
+
+        // ====== API CALLS ======
+        async function apiCall(method, endpoint, data = {}) {
+            try {
+                const password = localStorage.getItem('password');
+                const options = {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${password}`
+                    },
+                    timeout: CONFIG.API_TIMEOUT
+                };
+                
+                if (method !== 'GET') {
+                    options.body = JSON.stringify(data);
+                }
+                
+                const response = await fetch(`${CONFIG.DEVICE_IP}${endpoint}`, options);
+                if (response.status === 401) {
+                    logout();
+                    return null;
+                }
+                return response.json();
+            } catch (err) {
+                console.error('API call failed:', err);
+                updateConnectionStatus(false);
+                return null;
+            }
+        }
+
+        async function updateStatus() {
+            const status = await apiCall('GET', '/api/status');
+            if (!status) return;
+            
+            updateConnectionStatus(true);
+            lastUpdateTime = Date.now();
+
+            // Update device info
+            document.getElementById('deviceTime').textContent = status.time || '--:--:--';
+            document.getElementById('deviceTemp').textContent = (status.temp || 0).toFixed(1) + '°C';
+            document.getElementById('wifiSignal').textContent = (status.signal || 0) + ' dBm';
+            document.getElementById('deviceIPDisplay').textContent = status.ip || '--';
+
+            // Update controls
+            document.getElementById('brightnessSlider').value = status.brightness || 100;
+            document.getElementById('brightnessValue').textContent = status.brightness || 100;
+            document.getElementById('volumeSlider').value = status.volume || 15;
+            document.getElementById('volumeValue').textContent = status.volume || 15;
+
+            // Update prayer grid
+            updatePrayerGrid(status.prayers || []);
+
+            // Update event log
+            if (status.events) {
+                updateEventLog(status.events);
+            }
+        }
+
+        function updatePrayerGrid(prayers) {
+            const grid = document.getElementById('prayerGrid');
+            grid.innerHTML = '';
+            
+            const prayerNames = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
+            prayerNames.forEach((name, idx) => {
+                const prayer = prayers[idx] || { time: '--:--', status: 'pending' };
+                const status = prayer.status || 'pending';
+                
+                const card = document.createElement('div');
+                card.className = `prayer-card ${status}`;
+                card.innerHTML = `
+                    <div class="prayer-name">${name}</div>
+                    <div class="prayer-time">${prayer.time}</div>
+                    <div class="prayer-status ${status}">${status.toUpperCase()}</div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function updateEventLog(events) {
+            const logDiv = document.getElementById('eventLog');
+            if (events && events.length > 0) {
+                logDiv.innerHTML = events
+                    .slice(0, 10)
+                    .map(e => `<div style="color: var(--text-secondary); margin-bottom: 4px;">[${e.time}] ${e.message}</div>`)
+                    .join('');
+            }
+        }
+
+        async function updatePreview() {
+            const status = await apiCall('GET', '/api/status');
+            if (!status) return;
+
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('en-US', { 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                second: '2-digit',
+                hour12: true 
+            });
+
+            const mode = status.mode || 0;
+            
+            switch(mode) {
+                case 0: // Clock
+                    ledPreview.drawTime(timeStr);
+                    break;
+                case 1: // Scrolling
+                    ledPreview.drawMessage(status.scrollMsg || 'Welcome');
+                    break;
+                case 2: // Weather
+                    ledPreview.drawWeather(status.weather || 'Sunny 25°C');
+                    break;
+                case 3: // Qibla
+                    ledPreview.drawMessage('Qibla: 252.6°');
+                    break;
+                case 4: // Prayers
+                    ledPreview.drawPrayers(status.prayerDisplay || ['Fajr 05:30', 'Dhuhr 11:37', 'Asr 15:06']);
+                    break;
+                default:
+                    ledPreview.drawTime(timeStr);
+            }
+
+            // Update timestamp
+            const updateTimestamp = new Date().toLocaleTimeString();
+            document.getElementById('updateTime').textContent = `Last update: ${updateTimestamp}`;
+        }
+
+        // ====== SETTINGS ======
+        async function savePrayerSettings() {
+            const offsets = {};
+            document.querySelectorAll('.offset-input').forEach(input => {
+                offsets[input.getAttribute('data-prayer')] = parseInt(input.value);
+            });
+
+            const iqama = {};
+            document.querySelectorAll('.iqama-input').forEach(input => {
+                iqama[input.getAttribute('data-prayer')] = parseInt(input.value);
+            });
+
+            const result = await apiCall('POST', '/api/prayer_settings', {
+                offsets: offsets,
+                iqama: iqama,
+                calcMethod: parseInt(document.getElementById('calcMethod').value),
+                asrMethod: parseInt(document.getElementById('asrMethod').value),
+                highLat: parseInt(document.getElementById('highLat').value)
+            });
+
+            if (result) {
+                showToast('Prayer settings saved successfully!');
+            }
+        }
+
+        async function saveDisplaySettings() {
+            const result = await apiCall('POST', '/api/display_settings', {
+                brightness: parseInt(document.getElementById('dispBrightness').value),
+                scrollSpeed: parseInt(document.getElementById('dispScrollSpeed').value),
+                scrollMsg: document.getElementById('scrollMsg').value,
+                scrollMsgArabic: document.getElementById('scrollMsgArabic').value,
+                timeFormat: parseInt(document.getElementById('timeFormat').value),
+                dateFormat: parseInt(document.getElementById('dateFormat').value),
+                weatherInterval: parseInt(document.getElementById('weatherInterval').value),
+                prayerInterval: parseInt(document.getElementById('prayerInterval').value),
+                qiblaInterval: parseInt(document.getElementById('qiblaInterval').value),
+                autoBrightness: document.getElementById('autoBrightness').checked
+            });
+
+            if (result) {
+                showToast('Display settings saved successfully!');
+            }
+        }
+
+        async function syncDeviceTime() {
+            const result = await apiCall('POST', '/api/sync_time', {
+                timestamp: Math.floor(Date.now() / 1000)
+            });
+
+            if (result) {
+                showToast('Device time synchronized!');
+            }
+        }
+
+        // ====== UTILITIES ======
+        function updateConnectionStatus(connected) {
+            const status = document.getElementById('connectionStatus');
+            const text = document.getElementById('statusText');
+            
+            if (connected) {
+                status.classList.remove('offline');
+                text.textContent = 'Connected';
+            } else {
+                status.classList.add('offline');
+                text.textContent = 'Disconnected';
+            }
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+
+        function logout() {
+            isLoggedIn = false;
+            localStorage.removeItem('password');
+            document.getElementById('mainApp').classList.add('hidden');
+            document.getElementById('loginPage').classList.remove('hidden');
+        }
+
+        // ====== STARTUP ======
+        window.addEventListener('load', () => {
+            const savedPassword = localStorage.getItem('password');
+            if (savedPassword) {
+                document.getElementById('password').value = savedPassword;
+                document.getElementById('loginForm').dispatchEvent(new Event('submit'));
+            }
+        });
+    </script>
+</body>
+</html>
